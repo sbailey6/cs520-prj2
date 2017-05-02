@@ -202,7 +202,7 @@ int cacheLookUp(cacheGroup* cacheSystem, int cacheNum, int lineNum){
 	if(getState(cacheNum,lineNum) == INVALID) return MISS;
 	return HIT;		
 }
-
+//the command will be either PROB_READ OR PROBE_WRITE (bus reads and writes)
 void changeOtherState(cacheGroup* cacheSystem, int cacheNum, int lineNum, char command){
 	int state = getState(cacheNum, lineNum);
 	if(state == INVALID){
@@ -229,17 +229,50 @@ void changeOtherState(cacheGroup* cacheSystem, int cacheNum, int lineNum, char c
 	}
 }
 
-
+//signal will either be shared or exclusive
+//the commands here will either be PROC_READ or PROC_WRITE
 void changeProcState(cacheGroup* cacheSystem, int thisCacheNum, int thisLineNum, int lookup, int signal, char command){
 	int state = getState(thisCacheNum, thisLineNum);
+	printf("state: %d\ncacheNum:%d\nlineNum:%d\n", state, thisCacheNum, thisLineNum);
+	//invalid transitions
 	if(state == INVALID && signal == EXCLUSIVE && lookup == MISS && command == PROC_READ){
 		getState(thisCacheNum, thisLineNum) = EXCLUSIVE;
 	}	
 	else if(state == INVALID && signal == SHARED && lookup == MISS && command == PROC_READ){
 		getState(thisCacheNum, thisLineNum) = SHARED;	
 	}
-	else if(state == INVALID && signal ==  ){
-		
+	else if(state == INVALID && lookup == MISS && command == PROC_WRITE ){
+		getState(thisCacheNum, thisLineNum) = MODIFIED;
+	}
+	//exclusive transitions
+	else if(state == EXCLUSIVE && lookup == HIT && command == PROC_READ){
+		getState(thisCacheNum, thisLineNum) = EXCLUSIVE;	
+	}
+	else if(state == EXCLUSIVE && lookup == HIT && command == PROC_WRITE){
+		getState(thisCacheNum, thisLineNum) = MODIFIED;	
+	}
+	//shared transitions
+	else if(state == SHARED && lookup == HIT && command == PROC_READ){
+		getState(thisCacheNum, thisLineNum) = SHARED;	
+	}
+	else if(state == SHARED && lookup == MISS && command == PROC_READ){
+		getState(thisCacheNum, thisLineNum) = INVALID;	
+	}
+	else if(state == SHARED && lookup == HIT && command == PROC_WRITE){
+		getState(thisCacheNum, thisLineNum) = MODIFIED;	
+	}
+	//modified transitions
+	else if(state== MODIFIED && lookup == HIT && (command == PROC_WRITE || command == PROC_READ)){
+		getState(thisCacheNum, thisLineNum) = MODIFIED;	
+	}
+	//owned transitions
+	else if(state == OWNER && lookup == HIT && (command == PROC_WRITE || command == PROC_READ)){
+		getState(thisCacheNum, thisLineNum) = OWNER;	
+	}
+	//should never get in here, if we do we have to debug!
+	else{
+		printf("Invalid transition detected. Terminating the program.\n");	
+		printf("state: %d\nlookup:%d\ncommand:%d\nsignal:%d\n", state,lookup, command, signal);
 	}
 }
 
@@ -289,7 +322,7 @@ void readCommand(cacheGroup *cacheSystem, int cacheNum, int lineNum, char comman
 			probeBlookup = probe_read(cacheSystem, otherB, lineNum);
 			int signal;
 			if(probeAlookup == HIT || probeBlookup == HIT) signal = SHARED;
-			else signal == EXCLUSIVE;
+			else signal = EXCLUSIVE;
 			char oldState = stateChr(getState(cacheNum, lineNum));
 			changeProcState(cacheSystem, cacheNum, lineNum, lookup, signal, PROC_READ);
 			printf("%c -> %c\n", oldState, stateChr(getState(cacheNum, lineNum)));
