@@ -227,7 +227,7 @@ void changeOtherState(cacheGroup* cacheSystem, int cacheNum, int lineNum, int lo
 //the commands here will either be PROC_READ or PROC_WRITE
 void changeProcState(cacheGroup* cacheSystem, int thisCacheNum, int thisLineNum, int lookup, int signal, char command){
 	int state = getState(thisCacheNum, thisLineNum);
-	printf("state: %d\ncacheNum:%d\nlineNum:%d\n", state, thisCacheNum, thisLineNum);
+	//printf("state: %d\ncacheNum:%d\nlineNum:%d\n", state, thisCacheNum, thisLineNum);
 	//invalid transitions
 	if(state == INVALID && signal == EXCLUSIVE && lookup == MISS && command == PROC_READ){
 		getState(thisCacheNum, thisLineNum) = EXCLUSIVE;
@@ -265,8 +265,6 @@ void changeProcState(cacheGroup* cacheSystem, int thisCacheNum, int thisLineNum,
 	}
 	//should never get in here, if we do we have to debug!
 	else{
-		printf("Invalid transition detected. Terminating the program.\n");	
-		printf("state: %d\nlookup:%d\ncommand:%d\nsignal:%d\n", state,lookup, command, signal);
 	}
 }
 
@@ -276,7 +274,10 @@ int probe_write(cacheGroup *cacheSystem, int cacheNum, int lineNum){
 		printf("Cache %d, Probe Write %d\n", cacheNum, lineNum);
 		if(lookup == HIT) printf("Hit\n");
 		if(lookup == MISS) printf("Miss\n");
+		char oldState = stateChr(getState(cacheNum, lineNum));
 		changeOtherState(cacheSystem, cacheNum, lineNum, lookup, PROBE_WRITE);
+		printf("%c->%c\n", oldState, stateChr(getState(cacheNum, lineNum)));
+		printf("End Probe Read\n\n");
 		printf("End Probe Write\n\n");
 		return lookup;
 }
@@ -291,7 +292,9 @@ int probe_read(cacheGroup *cacheSystem, int cacheNum , int lineNum){
 			else printf("Hit\n");
 		}
 		if(lookup == MISS) printf("Miss\n");
+		char oldState = stateChr(getState(cacheNum, lineNum));
 		changeOtherState(cacheSystem, cacheNum, lineNum, lookup, PROBE_READ);
+		printf("%c->%c\n", oldState, stateChr(getState(cacheNum, lineNum)));
 		printf("End Probe Read\n\n");
 		return lookup;
 }
@@ -334,7 +337,12 @@ void readCommand(cacheGroup *cacheSystem, int cacheNum, int lineNum, char comman
 void writeCommand(cacheGroup *cacheSystem, int cacheNum, int lineNum, char command){
 		int lookup = cacheLookUp(cacheSystem, cacheNum, lineNum);
 		int probeA, probeB, otherA, otherB;
-		if(lookup == HIT) printf("Cache %d, Hit %d\n\n", cacheNum, lineNum);
+		if(lookup == HIT){
+			printf("Cache %d, Hit %d\n\n", cacheNum, lineNum);
+			char oldState = stateChr(getState(cacheNum, lineNum));
+			changeProcState(cacheSystem, cacheNum, lineNum, lookup, HIT, PROC_WRITE);
+			printf("%c -> %c\n", oldState, stateChr(getState(cacheNum, lineNum)));
+		}
 		if(lookup == MISS) {
 			printf("Cache %d, Miss %d\n\n", cacheNum, lineNum);
 			if(cacheNum == 0){
