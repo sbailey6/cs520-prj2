@@ -24,10 +24,8 @@
 
 #define PROC_READ 1
 #define PROC_WRITE 2
-#define BUS_READ 4
-#define BUS_WRITE 8
-#define PROBE_READ 16
-#define PROBE_WRITE 32
+#define PROBE_READ 4
+#define PROBE_WRITE 8
 
 typedef struct cacheGroup cacheGroup;
 typedef struct cache cache;
@@ -203,29 +201,25 @@ int cacheLookUp(cacheGroup* cacheSystem, int cacheNum, int lineNum){
 	return HIT;		
 }
 //the command will be either PROB_READ OR PROBE_WRITE (bus reads and writes)
-void changeOtherState(cacheGroup* cacheSystem, int cacheNum, int lineNum, char command){
+void changeOtherState(cacheGroup* cacheSystem, int cacheNum, int lineNum, int lookup, char command){
 	int state = getState(cacheNum, lineNum);
-	if(state == INVALID){
-			if(command == PROC_READ){
-				
-			}
-
-			
+    if(command == PROBE_WRITE && lookup == HIT){
+		printf("FLUSH\n");
+		getState(cacheNum, lineNum) = INVALID;	
 	}
-	else if(state == EXCLUSIVE){
-		
+	else if(state == EXCLUSIVE && command == PROBE_READ && lookup == HIT){
+		getState(cacheNum, lineNum) = SHARED;	
+	} 
+	else if(state == SHARED && command == PROBE_READ && lookup == HIT){
+		getState(cacheNum, lineNum) = SHARED;	
 	}
-	else if(state == SHARED){
-		
+	else if(state == MODIFIED && command == PROBE_READ && lookup == HIT){
+		getState(cacheNum, lineNum) = OWNER;	
 	}
-	else if(state == MODIFIED){
-		
-	}
-	else if(state == OWNER){
-		
-	}
-	else{
-		printf("Invalid state detected. Terminating program\n");	
+	else if(state == OWNER && command == PROBE_READ && lookup == HIT){
+		getState(cacheNum, lineNum) = OWNER;	
+	}	
+	else{	
 	}
 }
 
@@ -278,7 +272,13 @@ void changeProcState(cacheGroup* cacheSystem, int thisCacheNum, int thisLineNum,
 
 //TODO: implement
 int probe_write(cacheGroup *cacheSystem, int cacheNum, int lineNum){
-		return 0;
+		int lookup = cacheLookUp(cacheSystem, cacheNum, lineNum);
+		printf("Cache %d, Probe Write %d\n", cacheNum, lineNum);
+		if(lookup == HIT) printf("Hit\n");
+		if(lookup == MISS) printf("Miss\n");
+		changeOtherState(cacheSystem, cacheNum, lineNum, lookup, PROBE_WRITE);
+		printf("End Probe Write\n\n");
+		return lookup;
 }
 
 //TODO: implement
@@ -291,7 +291,7 @@ int probe_read(cacheGroup *cacheSystem, int cacheNum , int lineNum){
 			else printf("Hit\n");
 		}
 		if(lookup == MISS) printf("Miss\n");
-		changeOtherState(cacheSystem, cacheNum, lineNum, BUS_READ);
+		changeOtherState(cacheSystem, cacheNum, lineNum, lookup, PROBE_READ);
 		printf("End Probe Read\n\n");
 		return lookup;
 }
@@ -349,9 +349,14 @@ void writeCommand(cacheGroup *cacheSystem, int cacheNum, int lineNum, char comma
 				otherA = 0;
 				otherB = 1;	
 			}
+			int signal;
+			if(probeA == HIT || probeB == HIT) signal = HIT;
+			else signal = MISS;
 			probeA = probe_write(cacheSystem, otherA , lineNum);
 			probeB = probe_write(cacheSystem, otherB, lineNum);
-			
+			char oldState = stateChr(getState(cacheNum, lineNum));
+			changeProcState(cacheSystem, cacheNum, lineNum, lookup, signal, PROC_WRITE);
+			printf("%c -> %c\n", oldState, stateChr(getState(cacheNum, lineNum)));
 		}
 
 
