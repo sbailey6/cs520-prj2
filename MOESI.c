@@ -77,6 +77,7 @@ char stateChr(int state){
 }
 
 void printCacheSystem(cacheGroup* cacheSystem){
+	printf("-------------------------------------------------------------------------\n");
 	int i, j;
 	for(i = 0; i < NUM_CACHES; i++)
 		(i == (NUM_CACHES - 1)) ? printf("\tCACHE %d \t|\n", i): printf("\tCACHE %d \t|", i);
@@ -84,6 +85,7 @@ void printCacheSystem(cacheGroup* cacheSystem){
 	for(j = 0; j < NUM_CACHES; j++)
 		(j == (NUM_CACHES - 1)) ? printf("line %d\t  %c\t\t|\n", i, stateChr(getState(j, i))) : printf("line %d\t  %c\t\t|", i, stateChr(getState(j, i)));
 	printf("\n");
+	printf("-------------------------------------------------------------------------\n");
 }
 
 void freeCacheSystem(cacheGroup* cacheSystem, FILE* in){
@@ -277,7 +279,6 @@ int probe_write(cacheGroup *cacheSystem, int cacheNum, int lineNum){
 		char oldState = stateChr(getState(cacheNum, lineNum));
 		changeOtherState(cacheSystem, cacheNum, lineNum, lookup, PROBE_WRITE);
 		printf("%c->%c\n", oldState, stateChr(getState(cacheNum, lineNum)));
-		printf("End Probe Read\n\n");
 		printf("End Probe Write\n\n");
 		return lookup;
 }
@@ -328,7 +329,7 @@ void readCommand(cacheGroup *cacheSystem, int cacheNum, int lineNum, char comman
 			else signal = EXCLUSIVE;
 			char oldState = stateChr(getState(cacheNum, lineNum));
 			changeProcState(cacheSystem, cacheNum, lineNum, lookup, signal, PROC_READ);
-			printf("%c -> %c\n", oldState, stateChr(getState(cacheNum, lineNum)));
+			printf("Cache %d\n%c -> %c\n", cacheNum, oldState, stateChr(getState(cacheNum, lineNum)));
 		}
 	
 }
@@ -337,15 +338,9 @@ void readCommand(cacheGroup *cacheSystem, int cacheNum, int lineNum, char comman
 void writeCommand(cacheGroup *cacheSystem, int cacheNum, int lineNum, char command){
 		int lookup = cacheLookUp(cacheSystem, cacheNum, lineNum);
 		int probeA, probeB, otherA, otherB;
-		if(lookup == HIT){
-			printf("Cache %d, Hit %d\n\n", cacheNum, lineNum);
-			char oldState = stateChr(getState(cacheNum, lineNum));
-			changeProcState(cacheSystem, cacheNum, lineNum, lookup, HIT, PROC_WRITE);
-			printf("%c -> %c\n", oldState, stateChr(getState(cacheNum, lineNum)));
-		}
-		if(lookup == MISS) {
-			printf("Cache %d, Miss %d\n\n", cacheNum, lineNum);
-			if(cacheNum == 0){
+		if(lookup == HIT) printf("Cache %d, Hit %d\n\n", cacheNum, lineNum);
+		if(lookup == MISS) printf("Cache %d, Miss %d\n\n", cacheNum, lineNum);
+		if(cacheNum == 0){
 				otherA = 1;
 				otherB = 2;	
 			}
@@ -364,10 +359,7 @@ void writeCommand(cacheGroup *cacheSystem, int cacheNum, int lineNum, char comma
 			probeB = probe_write(cacheSystem, otherB, lineNum);
 			char oldState = stateChr(getState(cacheNum, lineNum));
 			changeProcState(cacheSystem, cacheNum, lineNum, lookup, signal, PROC_WRITE);
-			printf("%c -> %c\n", oldState, stateChr(getState(cacheNum, lineNum)));
-		}
-
-
+			printf("Cache %d\n%c -> %c\n", cacheNum, oldState, stateChr(getState(cacheNum, lineNum)));
 }
 
 void doCommand(cacheGroup *cacheSystem, int cacheNum, int lineNum, char command){
@@ -387,7 +379,7 @@ int main(int argc, char** argv){
 	int cacheNum, lineNum, cond, fileCount = 1; char command;
 	while((cond = parseCommand(in, &cacheNum, &lineNum, &command,fileCount++, argc, argv)) != 0){
 		if(cond == BAD_COMMAND) continue;
-		if(argc == 3 || argc == 1) printf("cacheNum: %d\tlineNum:%d\tcommand:%c\n", cacheNum, lineNum, command);
+		if(argc == 3 || argc == 1) printf("Command: %d%c%d\n", cacheNum, command, lineNum);
 		else printf("%d%c%d\n", cacheNum, command, lineNum);
 		doCommand(cacheSystem, cacheNum, lineNum, command);
 		if(argc == 3 || argc == 1) printCacheSystem(cacheSystem);
