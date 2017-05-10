@@ -390,6 +390,7 @@ void writeCommand(cacheGroup *cacheSystem, int cacheNum, int lineNum, char comma
 //TODO: implement
 void evictCommand(cacheGroup *cacheSystem, int cacheNum, int lineNum, char command){
 			int lookup = cacheLookUp(cacheSystem, cacheNum, lineNum);
+			int busA, busB, otherA, otherB;
 			char oldState = stateChr(getState(cacheNum, lineNum));
 		if(cacheNum == 0){
 				otherA = 1;
