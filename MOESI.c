@@ -24,8 +24,10 @@
 
 #define PROC_READ 1
 #define PROC_WRITE 2
-#define PROBE_READ 4
-#define PROBE_WRITE 8
+#define BUS_READ 4
+#define BUS_WRITE 8
+#define PROC_EVICT 16
+#define BUS_EVICT 32
 
 typedef struct cacheGroup cacheGroup;
 typedef struct cache cache;
@@ -202,23 +204,23 @@ int cacheLookUp(cacheGroup* cacheSystem, int cacheNum, int lineNum){
 	if(getState(cacheNum,lineNum) == INVALID) return MISS;
 	return HIT;		
 }
-//the command will be either PROB_READ OR PROBE_WRITE (bus reads and writes)
+//the command will be either PROB_READ OR BUS_WRITE (bus reads and writes)
 void changeOtherState(cacheGroup* cacheSystem, int cacheNum, int lineNum, int lookup, char command){
 	int state = getState(cacheNum, lineNum);
-    if(command == PROBE_WRITE && lookup == HIT){
+    if(command == BUS_WRITE && lookup == HIT){
 		printf("FLUSH\n");
 		getState(cacheNum, lineNum) = INVALID;	
 	}
-	else if(state == EXCLUSIVE && command == PROBE_READ && lookup == HIT){
+	else if(state == EXCLUSIVE && command == BUS_READ && lookup == HIT){
 		getState(cacheNum, lineNum) = SHARED;	
 	} 
-	else if(state == SHARED && command == PROBE_READ && lookup == HIT){
+	else if(state == SHARED && command == BUS_READ && lookup == HIT){
 		getState(cacheNum, lineNum) = SHARED;	
 	}
-	else if(state == MODIFIED && command == PROBE_READ && lookup == HIT){
+	else if(state == MODIFIED && command == BUS_READ && lookup == HIT){
 		getState(cacheNum, lineNum) = OWNER;	
 	}
-	else if(state == OWNER && command == PROBE_READ && lookup == HIT){
+	else if(state == OWNER && command == BUS_READ && lookup == HIT){
 		getState(cacheNum, lineNum) = OWNER;	
 	}	
 	else{	
@@ -265,28 +267,51 @@ void changeProcState(cacheGroup* cacheSystem, int thisCacheNum, int thisLineNum,
 	else if(state == OWNER && lookup == HIT && (command == PROC_WRITE || command == PROC_READ)){
 		getState(thisCacheNum, thisLineNum) = OWNER;	
 	}
+	else if(state == EXCLUSIVE && lookup == HIT && command == PROC_EVICT){
+		getState(thisCacheNum, thisLineNum) = INVALID;	
+	}
+	else if(state == SHARED && lookup == HIT && command == PROC_EVICT){
+		getState(thisCacheNum, thisLineNum) = INVALID;	
+	} 
+	else if(state == MODIFIED && lookup == HIT && command == PROC_EVICT){
+		printf("FLUSH\n");	
+		getState(thisCacheNum, thisLineNum) = INVALID;	
+	}
+	else if(state == OWNER && lookup == HIT && command == PROC_EVICT){
+		printf("FLUSH\n");
+		getState(thisCacheNum, thisLineNum) = INVALID;	
+	}
 	//should never get in here, if we do we have to debug!
 	else{
 	}
 }
 
 //TODO: implement
-int probe_write(cacheGroup *cacheSystem, int cacheNum, int lineNum){
+int bus_write(cacheGroup *cacheSystem, int cacheNum, int lineNum){
 		int lookup = cacheLookUp(cacheSystem, cacheNum, lineNum);
-		printf("Cache %d, Probe Write %d\n", cacheNum, lineNum);
+		printf("Cache %d, Bus Write %d\n", cacheNum, lineNum);
 		if(lookup == HIT) printf("Hit\n");
 		if(lookup == MISS) printf("Miss\n");
 		char oldState = stateChr(getState(cacheNum, lineNum));
-		changeOtherState(cacheSystem, cacheNum, lineNum, lookup, PROBE_WRITE);
+		changeOtherState(cacheSystem, cacheNum, lineNum, lookup, BUS_WRITE);
 		printf("%c->%c\n", oldState, stateChr(getState(cacheNum, lineNum)));
-		printf("End Probe Write\n\n");
+		printf("End Bus Write\n\n");
+		return lookup;
+}
+//TODO: implement
+int bus_evict(cacheGroup *cacheSystem, int cacheNum, int lineNum){
+		int lookup = cacheLookUp(cacheSystem, cacheNum, lineNum);
+		char oldState = stateChr(getState(cacheNum, lineNum));
+		changeOtherState(cacheSystem, cacheNum, lineNum, lookup, BUS_EVICT);
+		printf("%c->%c\n", oldState, stateChr(getState(cacheNum, lineNum)));
 		return lookup;
 }
 
+
 //TODO: implement
-int probe_read(cacheGroup *cacheSystem, int cacheNum , int lineNum){
+int bus_read(cacheGroup *cacheSystem, int cacheNum , int lineNum){
 		int lookup = cacheLookUp(cacheSystem, cacheNum, lineNum);
-		printf("Cache %d, Probe Read %d\n", cacheNum, lineNum);
+		printf("Cache %d, Bus Read %d\n", cacheNum, lineNum);
 		if(lookup == HIT){
 			int state = getState(cacheNum, lineNum);
 			if(state == MODIFIED || state == OWNER) printf("Dirty Hit\n");
@@ -294,16 +319,16 @@ int probe_read(cacheGroup *cacheSystem, int cacheNum , int lineNum){
 		}
 		if(lookup == MISS) printf("Miss\n");
 		char oldState = stateChr(getState(cacheNum, lineNum));
-		changeOtherState(cacheSystem, cacheNum, lineNum, lookup, PROBE_READ);
+		changeOtherState(cacheSystem, cacheNum, lineNum, lookup, BUS_READ);
 		printf("%c->%c\n", oldState, stateChr(getState(cacheNum, lineNum)));
-		printf("End Probe Read\n\n");
+		printf("End Bus Read\n\n");
 		return lookup;
 }
 
 //TODO: implement
 void readCommand(cacheGroup *cacheSystem, int cacheNum, int lineNum, char command){
 		int lookup = cacheLookUp(cacheSystem, cacheNum, lineNum);
-		int probeAlookup, probeBlookup, otherA, otherB;
+		int busAlookup, busBlookup, otherA, otherB;
 		if(lookup == HIT){
 			printf("Cache %d, Hit %d\n\n", cacheNum, lineNum);
 			printf("%c -> %c\n", stateChr(getState(cacheNum, lineNum)), stateChr(getState(cacheNum, lineNum)));
@@ -322,10 +347,10 @@ void readCommand(cacheGroup *cacheSystem, int cacheNum, int lineNum, char comman
 				otherA = 0;
 				otherB = 1;	
 			}
-			probeAlookup = probe_read(cacheSystem, otherA , lineNum);
-			probeBlookup = probe_read(cacheSystem, otherB, lineNum);
+			busAlookup = bus_read(cacheSystem, otherA , lineNum);
+			busBlookup = bus_read(cacheSystem, otherB, lineNum);
 			int signal;
-			if(probeAlookup == HIT || probeBlookup == HIT) signal = SHARED;
+			if(busAlookup == HIT || busBlookup == HIT) signal = SHARED;
 			else signal = EXCLUSIVE;
 			char oldState = stateChr(getState(cacheNum, lineNum));
 			changeProcState(cacheSystem, cacheNum, lineNum, lookup, signal, PROC_READ);
@@ -337,7 +362,7 @@ void readCommand(cacheGroup *cacheSystem, int cacheNum, int lineNum, char comman
 //TODO: implement
 void writeCommand(cacheGroup *cacheSystem, int cacheNum, int lineNum, char command){
 		int lookup = cacheLookUp(cacheSystem, cacheNum, lineNum);
-		int probeA, probeB, otherA, otherB;
+		int busA, busB, otherA, otherB;
 		if(lookup == HIT) printf("Cache %d, Hit %d\n\n", cacheNum, lineNum);
 		if(lookup == MISS) printf("Cache %d, Miss %d\n\n", cacheNum, lineNum);
 		if(cacheNum == 0){
@@ -353,18 +378,44 @@ void writeCommand(cacheGroup *cacheSystem, int cacheNum, int lineNum, char comma
 				otherB = 1;	
 			}
 			int signal;
-			if(probeA == HIT || probeB == HIT) signal = HIT;
+			if(busA == HIT || busB == HIT) signal = HIT;
 			else signal = MISS;
-			probeA = probe_write(cacheSystem, otherA , lineNum);
-			probeB = probe_write(cacheSystem, otherB, lineNum);
+			busA = bus_write(cacheSystem, otherA , lineNum);
+			busB = bus_write(cacheSystem, otherB, lineNum);
 			char oldState = stateChr(getState(cacheNum, lineNum));
 			changeProcState(cacheSystem, cacheNum, lineNum, lookup, signal, PROC_WRITE);
 			printf("Cache %d\n%c -> %c\n", cacheNum, oldState, stateChr(getState(cacheNum, lineNum)));
 }
 
+//TODO: implement
+void evictCommand(cacheGroup *cacheSystem, int cacheNum, int lineNum, char command){
+			int lookup = cacheLookUp(cacheSystem, cacheNum, lineNum);
+			char oldState = stateChr(getState(cacheNum, lineNum));
+		if(cacheNum == 0){
+				otherA = 1;
+				otherB = 2;	
+			}
+			else if(cacheNum == 1){
+				otherA = 0;
+				otherB = 2;	
+			}
+			else{
+				otherA = 0;
+				otherB = 1;	
+			}
+			int signal;
+			if(busA == HIT || busB == HIT) signal = HIT;
+			else signal = MISS;
+			busA = bus_evict(cacheSystem, otherA , lineNum);
+			busB = bus_evict(cacheSystem, otherB, lineNum);
+			changeProcState(cacheSystem, cacheNum, lineNum, lookup, signal, PROC_EVICT);
+			printf("Evict Cache %d\n%c -> %c\n", cacheNum, oldState, stateChr(getState(cacheNum, lineNum)));
+}
+
 void doCommand(cacheGroup *cacheSystem, int cacheNum, int lineNum, char command){
 	if(command == 'r') readCommand(cacheSystem, cacheNum, lineNum, command);
 	else if(command == 'w') writeCommand(cacheSystem, cacheNum, lineNum, command);
+	else if(command == 'e') evictCommand(cacheSystem, cacheNum, lineNum, command);
 	//should never reach this else block...
 	else{
 		printf("Bad command, terminating the program.\n");
