@@ -162,7 +162,7 @@ int parseCommand(FILE* const in, int* const cacheNum, int* const lineNum, char* 
 			printf("Invalid cacheNum. \t0 <= cacheNum < %d\n", NUM_CACHES); 	
 			return BAD_COMMAND;
 		}
-		if(*command != 'r' && *command != 'w'){
+		if(*command != 'r' && *command != 'w' && *command != 'e'){
 			printf("Invalid command. read: 'r'\twrite: 'w'\n"); 	
 			return BAD_COMMAND;	
 		}
@@ -188,7 +188,7 @@ int parseCommand(FILE* const in, int* const cacheNum, int* const lineNum, char* 
 			printf("Invalid cacheNum at line %d in \"%s\".\n", count, argv[argc -1]); 
 			return BAD_COMMAND;	
 		}
-		if(*command != 'r' && *command != 'w'){
+		if(*command != 'r' && *command != 'w' && *command != 'e'){
 			printf("Invalid command at line %d in \"%s\".\n", count, argv[argc - 1]); 		
 			return BAD_COMMAND;
 		}
@@ -222,6 +222,10 @@ void changeOtherState(cacheGroup* cacheSystem, int cacheNum, int lineNum, int lo
 	}
 	else if(state == OWNER && command == BUS_READ && lookup == HIT){
 		getState(cacheNum, lineNum) = OWNER;	
+	}
+	else if(command == BUS_EVICT){
+		printf("FLUSH\n");
+		getState(cacheNum, lineNum) = INVALID;	
 	}	
 	else{	
 	}
@@ -267,17 +271,17 @@ void changeProcState(cacheGroup* cacheSystem, int thisCacheNum, int thisLineNum,
 	else if(state == OWNER && lookup == HIT && (command == PROC_WRITE || command == PROC_READ)){
 		getState(thisCacheNum, thisLineNum) = OWNER;	
 	}
-	else if(state == EXCLUSIVE && lookup == HIT && command == PROC_EVICT){
+	else if(state == EXCLUSIVE && command == PROC_EVICT){
 		getState(thisCacheNum, thisLineNum) = INVALID;	
 	}
-	else if(state == SHARED && lookup == HIT && command == PROC_EVICT){
+	else if(state == SHARED && command == PROC_EVICT){
 		getState(thisCacheNum, thisLineNum) = INVALID;	
 	} 
-	else if(state == MODIFIED && lookup == HIT && command == PROC_EVICT){
+	else if(state == MODIFIED && command == PROC_EVICT){
 		printf("FLUSH\n");	
 		getState(thisCacheNum, thisLineNum) = INVALID;	
 	}
-	else if(state == OWNER && lookup == HIT && command == PROC_EVICT){
+	else if(state == OWNER && command == PROC_EVICT){
 		printf("FLUSH\n");
 		getState(thisCacheNum, thisLineNum) = INVALID;	
 	}
