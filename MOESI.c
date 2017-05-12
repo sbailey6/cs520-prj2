@@ -325,7 +325,7 @@ void readCommand(cacheGroup *cacheSystem, int cacheNum, int lineNum, char comman
 		if(lookup == HIT){
 			int state = getState(cacheNum, lineNum);
 			if(state == MODIFIED || state == OWNER){
-			printf("HIT DIRTY\n", cacheNum, lineNum);
+			printf("HIT DIRTY\n");
 			printf("%c -> %c\n\n", stateChr(getState(cacheNum, lineNum)), stateChr(getState(cacheNum, lineNum)));
 			}else{
 			printf("Hit\n");
