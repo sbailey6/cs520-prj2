@@ -29,6 +29,7 @@
 #define PROC_EVICT 16
 #define BUS_EVICT 32
 
+
 typedef struct cacheGroup cacheGroup;
 typedef struct cache cache;
 typedef struct cacheLine cacheLine; 
@@ -162,8 +163,10 @@ int parseCommand(FILE* const in, int* const cacheNum, int* const lineNum, char* 
 			printf("Invalid cacheNum. \t0 <= cacheNum < %d\n", NUM_CACHES); 	
 			return BAD_COMMAND;
 		}
+
 		if(*command != 'r' && *command != 'w' && *command != 'e'){
 			printf("Invalid command. read: 'r'\twrite: 'w'\n"); 	
+
 			return BAD_COMMAND;	
 		}
 		if(*lineNum < 0 || *lineNum >= NUM_LINES){
@@ -204,11 +207,15 @@ int cacheLookUp(cacheGroup* cacheSystem, int cacheNum, int lineNum){
 	if(getState(cacheNum,lineNum) == INVALID) return MISS;
 	return HIT;		
 }
+
 //the command will be either PROB_READ OR BUS_WRITE (bus reads and writes)
 void changeOtherState(cacheGroup* cacheSystem, int cacheNum, int lineNum, int lookup, char command){
 	int state = getState(cacheNum, lineNum);
     if(command == BUS_WRITE && lookup == HIT){
 		printf("FLUSH\n");
+
+
+
 		getState(cacheNum, lineNum) = INVALID;	
 	}
 	else if(state == EXCLUSIVE && command == BUS_READ && lookup == HIT){
@@ -232,7 +239,7 @@ void changeOtherState(cacheGroup* cacheSystem, int cacheNum, int lineNum, int lo
 }
 
 //signal will either be shared or exclusive
-//the commands here will either be PROC_READ or PROC_WRITE
+//the commands here will either be PROC_READ, PROC_WRITE, or PROC_EVICT
 void changeProcState(cacheGroup* cacheSystem, int thisCacheNum, int thisLineNum, int lookup, int signal, char command){
 	int state = getState(thisCacheNum, thisLineNum);
 	//printf("state: %d\ncacheNum:%d\nlineNum:%d\n", state, thisCacheNum, thisLineNum);
@@ -250,6 +257,9 @@ void changeProcState(cacheGroup* cacheSystem, int thisCacheNum, int thisLineNum,
 	else if(state == EXCLUSIVE && lookup == HIT && command == PROC_READ){
 		getState(thisCacheNum, thisLineNum) = EXCLUSIVE;	
 	}
+	else if(state == EXCLUSIVE && lookup == HIT && command == PROC_EVICT){
+		getState(thisCacheNum, thisLineNum) = INVALID;	
+	}
 	else if(state == EXCLUSIVE && lookup == HIT && command == PROC_WRITE){
 		getState(thisCacheNum, thisLineNum) = MODIFIED;	
 	}
@@ -263,14 +273,22 @@ void changeProcState(cacheGroup* cacheSystem, int thisCacheNum, int thisLineNum,
 	else if(state == SHARED && lookup == HIT && command == PROC_WRITE){
 		getState(thisCacheNum, thisLineNum) = MODIFIED;	
 	}
+	else if(state == SHARED && lookup == HIT && command == PROC_EVICT){
+		getState(thisCacheNum, thisLineNum) = INVALID;	
+	} 
 	//modified transitions
 	else if(state== MODIFIED && lookup == HIT && (command == PROC_WRITE || command == PROC_READ)){
 		getState(thisCacheNum, thisLineNum) = MODIFIED;	
+	}
+	else if(state == MODIFIED && lookup == HIT && command == PROC_EVICT){
+		printf("FLUSH\n");	
+		getState(thisCacheNum, thisLineNum) = INVALID;	
 	}
 	//owned transitions
 	else if(state == OWNER && lookup == HIT && (command == PROC_WRITE || command == PROC_READ)){
 		getState(thisCacheNum, thisLineNum) = OWNER;	
 	}
+
 	else if(state == EXCLUSIVE && command == PROC_EVICT){
 		getState(thisCacheNum, thisLineNum) = INVALID;	
 	}
@@ -312,8 +330,10 @@ int bus_evict(cacheGroup *cacheSystem, int cacheNum, int lineNum){
 }
 
 
+
 //TODO: implement
 int bus_read(cacheGroup *cacheSystem, int cacheNum , int lineNum){
+
 		int lookup = cacheLookUp(cacheSystem, cacheNum, lineNum);
 		printf("Cache %d, Bus Read %d\n", cacheNum, lineNum);
 		if(lookup == HIT){
@@ -329,7 +349,6 @@ int bus_read(cacheGroup *cacheSystem, int cacheNum , int lineNum){
 		return lookup;
 }
 
-//TODO: implement
 void readCommand(cacheGroup *cacheSystem, int cacheNum, int lineNum, char command){
 		int lookup = cacheLookUp(cacheSystem, cacheNum, lineNum);
 		int busAlookup, busBlookup, otherA, otherB;
@@ -363,7 +382,6 @@ void readCommand(cacheGroup *cacheSystem, int cacheNum, int lineNum, char comman
 	
 }
 
-//TODO: implement
 void writeCommand(cacheGroup *cacheSystem, int cacheNum, int lineNum, char command){
 		int lookup = cacheLookUp(cacheSystem, cacheNum, lineNum);
 		int busA, busB, otherA, otherB;
