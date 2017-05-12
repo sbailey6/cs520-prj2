@@ -204,8 +204,11 @@ void changeOtherState(cacheGroup* cacheSystem, int cacheNum, int lineNum, int lo
 	else if(state == OWNER && command == BUS_READ && lookup == HIT){
 		getState(cacheNum, lineNum) = OWNER;	
 	}
-	else if(command == BUS_EVICT){
+	else if((state == OWNER || state == MODIFIED) && command == BUS_EVICT){
 		printf("FLUSH\n");
+		getState(cacheNum, lineNum) = INVALID;	
+	}
+	else if(!(state == OWNER || state == MODIFIED) && command == BUS_EVICT){
 		getState(cacheNum, lineNum) = INVALID;	
 	}	
 	else{	
