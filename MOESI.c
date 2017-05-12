@@ -144,7 +144,7 @@ int parseCommand(FILE* const in, int* const cacheNum, int* const lineNum, char* 
 			return BAD_COMMAND;
 		}
 		if(*command != 'r' && *command != 'w' && *command != 'e'){
-			printf("Invalid command. read: 'r'\twrite: 'w'\n"); 	
+			printf("Invalid command. read: 'r'\twrite: 'w'\tevict: 'e'\n"); 	
 			return BAD_COMMAND;	
 		}
 		if(*lineNum < 0 || *lineNum >= NUM_LINES){
@@ -189,7 +189,6 @@ int cacheLookUp(cacheGroup* cacheSystem, int cacheNum, int lineNum){
 void changeOtherState(cacheGroup* cacheSystem, int cacheNum, int lineNum, int lookup, char command){
 	int state = getState(cacheNum, lineNum);
     if(command == BUS_WRITE && lookup == HIT){
-		printf("FLUSH\n");
 		getState(cacheNum, lineNum) = INVALID;	
 	}
 	else if(state == EXCLUSIVE && command == BUS_READ && lookup == HIT){
@@ -205,7 +204,7 @@ void changeOtherState(cacheGroup* cacheSystem, int cacheNum, int lineNum, int lo
 		getState(cacheNum, lineNum) = OWNER;	
 	}
 	else if(command == BUS_EVICT){
-		printf("FLUSH\n");
+		if(getState(cacheNum, lineNum) == OWNER || getState(cacheNum, lineNum) == MODIFIED) printf("FLUSH\n");
 		getState(cacheNum, lineNum) = INVALID;	
 	}	
 	else{	
@@ -277,7 +276,7 @@ int bus_write(cacheGroup *cacheSystem, int cacheNum, int lineNum){
 		printf("Cache %d, Bus Write %d\n", cacheNum, lineNum);
 		if(lookup == HIT){
 			int state = getState(cacheNum, lineNum);
-			if(state == MODIFIED || state == OWNER) printf("Hit Dirty\n");
+			if(state == MODIFIED || state == OWNER) printf("Hit Dirty\nFlush\n");
 			else printf("Hit\n");
 		}
 		if(lookup == MISS) printf("Miss\n");
@@ -321,11 +320,11 @@ void readCommand(cacheGroup *cacheSystem, int cacheNum, int lineNum, char comman
 		if(lookup == HIT){
 			int state = getState(cacheNum, lineNum);
 			if(state == MODIFIED || state == OWNER){
-			printf("Cache %d, Dirty Dirty%d\n\n", cacheNum, lineNum);
-			printf("%c -> %c\n", stateChr(getState(cacheNum, lineNum)), stateChr(getState(cacheNum, lineNum)));
+			printf("HIT DIRTY\n", cacheNum, lineNum);
+			printf("%c -> %c\n\n", stateChr(getState(cacheNum, lineNum)), stateChr(getState(cacheNum, lineNum)));
 			}else{
-			printf("Cache %d, Hit %d\n\n", cacheNum, lineNum);
-			printf("%c -> %c\n", stateChr(getState(cacheNum, lineNum)), stateChr(getState(cacheNum, lineNum)));
+			printf("Hit\n");
+			printf("%c -> %c\n\n", stateChr(getState(cacheNum, lineNum)), stateChr(getState(cacheNum, lineNum)));
 			}
 		}
 		if(lookup == MISS) {
@@ -350,6 +349,9 @@ void readCommand(cacheGroup *cacheSystem, int cacheNum, int lineNum, char comman
 			char oldState = stateChr(getState(cacheNum, lineNum));
 			changeProcState(cacheSystem, cacheNum, lineNum, lookup, signal, PROC_READ);
 			printf("Cache %d\n%c -> %c\n", cacheNum, oldState, stateChr(getState(cacheNum, lineNum)));
+			if(getState(otherA, lineNum) == INVALID && getState(otherB, lineNum) == INVALID)
+				printf("MEMORY READ\n");
+			printf("\n");
 		}
 	
 }
@@ -361,12 +363,12 @@ void writeCommand(cacheGroup *cacheSystem, int cacheNum, int lineNum, char comma
 		if(lookup == HIT){
 			int state = getState(cacheNum, lineNum);
 			if(state == MODIFIED || state == OWNER){
-			printf("Cache %d, Hit Dirty %d\n\n", cacheNum, lineNum);
+			printf("Hit Dirty\n");
 			}else{
-			printf("Cache %d, Hit %d\n\n", cacheNum, lineNum);
+			printf("Hit\n");
 			}
 		}
-		if(lookup == MISS) printf("Cache %d, Miss %d\n\n", cacheNum, lineNum);
+		if(lookup == MISS) printf("Miss\n\n");
 		if(cacheNum == 0){
 				otherA = 1;
 				otherB = 2;	
@@ -379,14 +381,16 @@ void writeCommand(cacheGroup *cacheSystem, int cacheNum, int lineNum, char comma
 				otherA = 0;
 				otherB = 1;	
 			}
-			int signal;
-			if(busA == HIT || busB == HIT) signal = HIT;
-			else signal = MISS;
-			busA = bus_write(cacheSystem, otherA , lineNum);
-			busB = bus_write(cacheSystem, otherB, lineNum);
+			//dummy signal
+			int signal = 5555;
+			if(getState(cacheNum, lineNum) != EXCLUSIVE && getState(cacheNum, lineNum) != MODIFIED){
+				busA = bus_write(cacheSystem, otherA , lineNum);
+				busB = bus_write(cacheSystem, otherB, lineNum);
+			}
 			char oldState = stateChr(getState(cacheNum, lineNum));
 			changeProcState(cacheSystem, cacheNum, lineNum, lookup, signal, PROC_WRITE);
-			printf("Cache %d\n%c -> %c\n", cacheNum, oldState, stateChr(getState(cacheNum, lineNum)));
+				if(getState(cacheNum, lineNum) != MODIFIED) printf("Cache %d\n", cacheNum);
+					printf("%c -> %c\n\n", oldState, stateChr(getState(cacheNum, lineNum)));
 }
 
 //TODO: implement
@@ -412,7 +416,7 @@ void evictCommand(cacheGroup *cacheSystem, int cacheNum, int lineNum, char comma
 			busA = bus_evict(cacheSystem, otherA , lineNum);
 			busB = bus_evict(cacheSystem, otherB, lineNum);
 			changeProcState(cacheSystem, cacheNum, lineNum, lookup, signal, PROC_EVICT);
-			printf("Evict Cache %d\n%c -> %c\n", cacheNum, oldState, stateChr(getState(cacheNum, lineNum)));
+			printf("Evict Cache %d\n%c -> %c\n\n", cacheNum, oldState, stateChr(getState(cacheNum, lineNum)));
 }
 
 void doCommand(cacheGroup *cacheSystem, int cacheNum, int lineNum, char command){
