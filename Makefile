@@ -1,4 +1,4 @@
-SRC_FILES = MOESI.c makefile
+SRC_FILES = MOESI.c Makefile
 
 all:
 	gcc -g MOESI.c -o main
