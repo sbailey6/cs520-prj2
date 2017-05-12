@@ -29,6 +29,9 @@
 #define PROC_EVICT 16
 #define BUS_EVICT 32
 
+#define NO_CACHE_DISPLAY 100
+#define DISPLAY_CACHE 250
+
 typedef struct cacheGroup cacheGroup;
 typedef struct cache cache;
 typedef struct cacheLine cacheLine; 
@@ -98,50 +101,28 @@ void freeCacheSystem(cacheGroup* cacheSystem, FILE* in){
 }
 
 FILE* determineMode(int argc, char** argv){
-	if(argc > 3){
-		printf("usage: %s [[-t] file name]\n", argv[0]);
-		printf("Specfied file: read file line by line for cache commands.\n\tSpecify -t option with your file to trace cache changes.\n");
-		printf("No arguments specified: user types in cache commands interactively\n");
-		exit(-3);	
+	FILE* in = NULL;
+	int mode = NO_CACHE_DISPLAY;
+	int fileIdx = 0;
+	if(argc == 1){
+		 printf("************ENTERING INTERACTIVE MODE************\n\n");
+		 return in;
 	}
-	FILE* in;
-	if(argc == 2){
-		if(strcmp(argv[1], "-t") == 0){
-			printf("Trace is automatically enabled for interactive mode.\nSpecify fileName or rerun without arguments for interactive mode.\n");
-printf("usage: %s [[-t] file name]\n", argv[0]);
-		printf("Specfied file: read file line by line for cache commands.\n\tSpecify -t option with your file to trace cache changes.\n");
-		printf("No arguments specified: user types in cache commands interactively\n");
-			exit(-6);	
-		}
-		in = fopen(argv[1], "r");
+	if(strcmp(argv[1], "-t") == 0){
+			mode = DISPLAY_CACHE;
+	}
+	if((argc > 2 && mode == DISPLAY_CACHE) || (argc > 1 && mode == NO_CACHE_DISPLAY)){
+	if(mode == NO_CACHE_DISPLAY) fileIdx = 1;
+	else fileIdx = 2;
+		in = fopen(argv[fileIdx], "r");
 		if(!in){
-			printf("The file \"%s\" does not exist. Terminating program.\n", argv[1]);	printf("usage: %s [[-t] file name]\n", argv[0]);
-		printf("Specfied file: read file line by line for cache commands.\n\tSpecify -t option with your file to trace cache changes.\n");
-		printf("No arguments specified: user types in cache commands interactively\n");exit(-2);
+			printf("The file \"%s\" does not exist. Terminating program.\n", argv[fileIdx]);	printf("usage: %s [[-t] file name]\n", argv[0]);
+			printf("Specfied file: read file line by line for cache commands.\nSpecify -t option trace cache changes in a graphical display.\n");
+			printf("No arguments specified: user types in cache commands interactively\n");exit(-2);
 		}
 	}
-	else if(argc == 3){
-		if(strcmp(argv[1], "-t") != 0){
-			printf("Invalid option provided. trace: \"-t\"\n");	
-printf("usage: %s [[-t] file name]\n", argv[0]);
-		printf("Specfied file: read file line by line for cache commands.\n\tSpecify -t option with your file to trace cache changes.\n");
-		printf("No arguments specified: user types in cache commands interactively\n");
-			exit(-5);
-		}
-		in = fopen(argv[2], "r");
-		if(!in){
-			printf("The file \"%s\" does not exist. Terminating program.\n", argv[2]);	
-			printf("usage: %s [[-t] file name]\n", argv[0]);
-		printf("Specfied file: read file line by line for cache commands.\n\tSpecify -t option with your file to trace cache changes.\n");
-		printf("No arguments specified: user types in cache commands interactively\n");exit(-2);
-		}	
-	}
-	else{
-		 in = NULL;
-	}
-	if(!in) printf("************ENTERING INTERACTIVE MODE************\n\n");
-	else if(argc == 2) printf("************READING FROM: \"%s\"***************\n\n", argv[1]);
-	else  printf("************READING FROM: \"%s\"***************\n\n", argv[2]);
+	if(mode == DISPLAY_CACHE) printf("************ENTERING INTERACTIVE MODE************\n\n");
+	if(in) printf("************READING FROM: \"%s\"***************\n\n", argv[fileIdx]);;
 	return in;
 }
 
@@ -448,14 +429,14 @@ void doCommand(cacheGroup *cacheSystem, int cacheNum, int lineNum, char command)
 int main(int argc, char** argv){
 	FILE* in = determineMode(argc, argv); 
 	cacheGroup *cacheSystem = createCacheSystem();
-	if(argc == 3 || argc == 1) printCacheSystem(cacheSystem);
+	if(argc > 1 && strcmp(argv[1], "-t") == 0) printCacheSystem(cacheSystem);
 	int cacheNum, lineNum, cond, fileCount = 1; char command;
 	while((cond = parseCommand(in, &cacheNum, &lineNum, &command,fileCount++, argc, argv)) != 0){
 		if(cond == BAD_COMMAND) continue;
-		if(argc == 3 || argc == 1) printf("Command: %d%c%d\n", cacheNum, command, lineNum);
+		if(argc > 1 && strcmp(argv[1], "-t") == 0) printf("Command: %d%c%d\n", cacheNum, command, lineNum);
 		else printf("%d%c%d\n", cacheNum, command, lineNum);
 		doCommand(cacheSystem, cacheNum, lineNum, command);
-		if(argc == 3 || argc == 1) printCacheSystem(cacheSystem);
+		if(argc > 1 && strcmp(argv[1], "-t") == 0) printCacheSystem(cacheSystem);
 	}
 	
 	freeCacheSystem(cacheSystem, in);
