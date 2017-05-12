@@ -1,3 +1,8 @@
+//Raymond Rolston, Shawn Bailey
+//Project 2
+//CS520
+//MOESI
+
 #include <stdio.h>
 #include <strings.h>
 #include <stdlib.h>
