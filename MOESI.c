@@ -204,7 +204,7 @@ void changeOtherState(cacheGroup* cacheSystem, int cacheNum, int lineNum, int lo
 		getState(cacheNum, lineNum) = OWNER;	
 	}
 	else if(command == BUS_EVICT){
-		if(getState(cacheNum, lineNum) == OWNER || getState(cacheNum, lineNum) == MODIFIED) printf("FLUSH\n");
+		if(state == OWNER || state == MODIFIED) printf("FLUSH\n");
 		getState(cacheNum, lineNum) = INVALID;	
 	}	
 	else{	
